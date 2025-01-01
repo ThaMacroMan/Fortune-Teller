@@ -9,6 +9,13 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+interface ErrorWithCode extends Error {
+  code?: string;
+  response?: {
+    status?: number;
+  };
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -66,14 +73,15 @@ export default async function handler(
     })}\n\n`);
 
     res.end();
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Fortune API Error:', error);
     
-    const errorMessage = error.code === 'ECONNREFUSED' 
+    const err = error as ErrorWithCode;
+    const errorMessage = err.code === 'ECONNREFUSED' 
       ? 'OpenAI service is unavailable'
-      : error.response?.status === 429 
+      : err.response?.status === 429 
       ? 'Rate limit exceeded'
-      : process.env.NODE_ENV === 'development' ? error.message : 'Unknown error';
+      : process.env.NODE_ENV === 'development' ? err.message : 'Unknown error';
 
     res.write(`data: ${JSON.stringify({ error: errorMessage })}\n\n`);
     res.end();
